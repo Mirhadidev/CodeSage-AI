@@ -1,0 +1,7 @@
+# CodeSage AI — pinned to the current LangChain 1.x line (Sept 2026)
+streamlit>=1.63.0
+langchain>=1.4.0
+langchain-openai>=1.6.0
+langchain-core>=1.6.0
+python-dotenv>=1.2.0
+openai>=1.0.0

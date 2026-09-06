@@ -1,0 +1,48 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  body { margin:0; background:transparent; font-family: "Source Sans Pro", system-ui, sans-serif; }
+  #btn {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background:
+      linear-gradient(rgba(14,19,48,0.92), rgba(10,14,36,0.92)) padding-box,
+      linear-gradient(120deg, rgba(167,139,250,0.95), rgba(34,211,238,0.85)) border-box;
+    color: #E8ECFF; font-weight: 650; font-size: 0.86rem; cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+  #btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(124,92,255,0.45); }
+</style></head>
+<body>
+  <button id="btn" type="button">⬆️ Back to top</button>
+<script>
+function send(t, p) { window.parent.postMessage(Object.assign({isStreamlitMessage:true, type:t}, p), "*"); }
+
+// Streamlit serves components from the same origin, so the iframe can reach the
+// host page and scroll its container. A plain anchor link will not work: the app
+// scrolls an inner div, not the window.
+document.getElementById("btn").addEventListener("click", function () {
+  try {
+    const doc = window.parent.document;
+    const targets = [
+      '[data-testid="stAppScrollToBottomContainer"]',
+      '[data-testid="stAppViewContainer"]',
+      '.stMain',
+      'section.main',
+    ];
+    for (const sel of targets) {
+      const el = doc.querySelector(sel);
+      if (el && el.scrollHeight > el.clientHeight) {
+        el.style.scrollBehavior = "smooth";
+        el.scrollTop = 0;
+      }
+    }
+    window.parent.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (e) { /* cross-origin fallback: do nothing rather than throw */ }
+});
+
+send("streamlit:componentReady", { apiVersion: 1 });
+send("streamlit:setFrameHeight", { height: 42 });
+</script>
+</body></html>

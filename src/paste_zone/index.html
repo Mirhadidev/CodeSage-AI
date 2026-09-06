@@ -1,0 +1,197 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --violet: #7C5CFF;
+    --cyan:   #22D3EE;
+    --muted:  #9AA6D4;
+    --text:   #E8ECFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Source Sans Pro", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: transparent;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  #zone {
+    border: 1.5px dashed rgba(148, 163, 255, 0.45);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 14px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .22s ease;
+    outline: none;
+    user-select: none;
+  }
+  #zone:hover,
+  #zone:focus-visible {
+    border-color: rgba(124, 92, 255, 0.9);
+    background: rgba(124, 92, 255, 0.12);
+    box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.18);
+  }
+  #zone.armed {
+    border-style: solid;
+    border-color: var(--cyan);
+    background: rgba(34, 211, 238, 0.12);
+  }
+  #zone.has-image {
+    border-style: solid;
+    border-color: rgba(52, 211, 153, 0.75);
+    background: rgba(52, 211, 153, 0.08);
+    cursor: default;
+  }
+
+  .headline { font-size: 0.92rem; font-weight: 650; margin: 0 0 3px; }
+  .hint     { font-size: 0.76rem; color: var(--muted); margin: 0; }
+  kbd {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(148,163,255,0.35);
+    border-radius: 5px;
+    padding: 1px 6px;
+    font-size: 0.72rem;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+  }
+
+  #preview { display: none; align-items: center; gap: 12px; text-align: left; }
+  #preview img {
+    max-height: 76px;
+    max-width: 140px;
+    border-radius: 10px;
+    border: 1px solid rgba(148,163,255,0.3);
+  }
+  #meta { flex: 1; font-size: 0.8rem; color: var(--muted); }
+  #clear {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(148,163,255,0.3);
+    color: var(--text);
+    border-radius: 9px;
+    padding: 5px 11px;
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+  #clear:hover { background: rgba(244,114,182,0.22); border-color: rgba(244,114,182,0.6); }
+</style>
+</head>
+<body>
+  <div id="zone" tabindex="0">
+    <div id="idle">
+      <p class="headline">📋 Click here, then press <kbd>Ctrl</kbd>+<kbd>V</kbd></p>
+      <p class="hint">Paste a screenshot straight from your clipboard — no saving a file first.</p>
+    </div>
+    <div id="preview">
+      <img id="thumb" alt="pasted screenshot" />
+      <div id="meta"></div>
+      <button id="clear" type="button">Remove</button>
+    </div>
+  </div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Streamlit component protocol, implemented by hand so this needs no npm
+// build step and no third-party package — just an HTML file.
+// ---------------------------------------------------------------------------
+function send(type, payload) {
+  window.parent.postMessage(
+    Object.assign({ isStreamlitMessage: true, type: type }, payload), "*"
+  );
+}
+function setValue(value) {
+  send("streamlit:setComponentValue", { value: value, dataType: "json" });
+}
+function setHeight(h) {
+  send("streamlit:setFrameHeight", { height: h });
+}
+
+const zone    = document.getElementById("zone");
+const idle    = document.getElementById("idle");
+const preview = document.getElementById("preview");
+const thumb   = document.getElementById("thumb");
+const meta    = document.getElementById("meta");
+const clearBt = document.getElementById("clear");
+
+// Only report a height when it actually changed. Streamlit broadcasts a
+// render event to EVERY component on every rerun, and answering each one with
+// setFrameHeight re-lays-out the component tree — which closes any open
+// dropdown elsewhere on the page (it broke the role multiselect).
+let lastHeight = -1;
+function reportHeight() {
+  const h = document.body.scrollHeight + 4;
+  if (h !== lastHeight) {
+    lastHeight = h;
+    setHeight(h);
+  }
+}
+
+function showImage(dataUrl, bytes) {
+  thumb.src = dataUrl;
+  meta.textContent = `Screenshot attached · ${(bytes / 1024).toFixed(0)} KB`;
+  idle.style.display = "none";
+  preview.style.display = "flex";
+  zone.classList.remove("armed");
+  zone.classList.add("has-image");
+  setTimeout(reportHeight, 60);
+}
+
+function reset() {
+  idle.style.display = "block";
+  preview.style.display = "none";
+  zone.classList.remove("has-image");
+  thumb.src = "";
+  setValue(null);
+  setTimeout(reportHeight, 60);
+}
+
+// Focus arms the zone so the browser routes the paste event here.
+zone.addEventListener("click", () => zone.focus());
+zone.addEventListener("focus", () => {
+  if (!zone.classList.contains("has-image")) zone.classList.add("armed");
+});
+zone.addEventListener("blur", () => zone.classList.remove("armed"));
+
+clearBt.addEventListener("click", (e) => { e.stopPropagation(); reset(); });
+
+function handlePaste(event) {
+  const items = (event.clipboardData || window.clipboardData)?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type && item.type.indexOf("image") === 0) {
+      const file = item.getAsFile();
+      if (!file) continue;
+      event.preventDefault();
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const dataUrl = reader.result;
+        const bytes = Math.round((dataUrl.length - dataUrl.indexOf(",") - 1) * 0.75);
+        showImage(dataUrl, bytes);
+        // A timestamp makes each paste a distinct value, so pasting the same
+        // screenshot twice still triggers a rerun.
+        setValue({ data_url: dataUrl, bytes: bytes, ts: Date.now() });
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+  }
+}
+
+// Listen on both the zone and the document: some browsers deliver the paste
+// to the document even when a child element holds focus.
+zone.addEventListener("paste", handlePaste);
+document.addEventListener("paste", handlePaste);
+
+window.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "streamlit:render") reportHeight();
+});
+
+send("streamlit:componentReady", { apiVersion: 1 });
+reportHeight();
+</script>
+</body>
+</html>

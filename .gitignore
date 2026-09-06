@@ -1,0 +1,19 @@
+# Secrets
+.env
+.streamlit/secrets.toml
+
+# Caches
+codesage_cache.db
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environments
+venv/
+.venv/
+env/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
