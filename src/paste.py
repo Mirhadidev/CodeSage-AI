@@ -24,8 +24,19 @@ _paste_zone = components.declare_component("codesage_paste_zone", path=_BUILD_DI
 
 
 def paste_zone(key: str = "paste_zone") -> dict | None:
-    """Render the paste target. Returns {'data_url', 'bytes', 'ts'} or None."""
-    return _paste_zone(key=key, default=None)
+    """Render the paste target. Returns {'data_url', 'bytes', 'ts'} or None.
+
+    Custom components build their URL from the live server connection. On a
+    cold start — Streamlit Community Cloud especially — that connection may not
+    exist yet, and the frontend throws "not connected to a server", which takes
+    the WHOLE PAGE down with it. A convenience feature must never be able to do
+    that, so any failure here degrades to "no paste zone" and the file uploader
+    below carries on doing the same job.
+    """
+    try:
+        return _paste_zone(key=key, default=None)
+    except Exception:
+        return None
 
 
 def decode_data_url(data_url: str) -> tuple[bytes, str]:
@@ -49,5 +60,12 @@ _scroll_top = components.declare_component("codesage_scroll_top", path=_SCROLL_D
 
 
 def scroll_top_button(key: str = "scroll_top") -> None:
-    """Render a 'back to top' button that works with Streamlit's scroller."""
-    _scroll_top(key=key, default=None)
+    """Render a 'back to top' button that works with Streamlit's scroller.
+
+    Same reasoning as `paste_zone`: if the component cannot load, the button
+    simply does not appear. Nothing else about the app changes.
+    """
+    try:
+        _scroll_top(key=key, default=None)
+    except Exception:
+        pass

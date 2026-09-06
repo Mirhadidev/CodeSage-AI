@@ -348,6 +348,16 @@ with st.expander(panel_title, expanded=not st.session_state.messages):
 
     st.markdown(label("…or paste a screenshot"), unsafe_allow_html=True)
     pasted = paste_zone()
+    if pasted is None and not st.session_state.get("paste_zone_ok"):
+        # The zone returns None both when nothing is pasted and when the
+        # component itself failed to load, so this caption is deliberately
+        # low-key — the uploader below does the same job either way.
+        st.caption(
+            "If the paste box doesn't appear, reload the page — or just use "
+            "**Browse for a file** below."
+        )
+    elif pasted:
+        st.session_state.paste_zone_ok = True
 
     st.markdown(label("…or browse for a file"), unsafe_allow_html=True)
     uploads = st.file_uploader(
