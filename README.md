@@ -1,5 +1,10 @@
 # 🧠 CodeSage AI
 
+<img width="1366" height="599" alt="image" src="https://github.com/user-attachments/assets/9df443f7-4116-4fb9-866b-a5e3f2860f48" />
+
+
+https://drive.google.com/file/d/14GM_pwF7lmqYSKhv1Szn1R0awvZnTe1Q/view?usp=sharing
+
 **Your smart coding companion — review, debug, optimise, explain.**
 A LangChain + Streamlit chat assistant that only talks about code.
 
